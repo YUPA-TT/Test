@@ -3,6 +3,7 @@
 // ドラッグ可能なフローティングボタン + スライドインパネル
 
 #import "ModMenuUI.h"
+#import <objc/runtime.h>
 
 // ========================================
 // 定数
@@ -49,11 +50,12 @@ static const CGFloat kRowHeight    = 52.0f;
     self.toggle.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:self.toggle];
 
-    // アクションブロックをコピー保存
+    // アクションブロックをスイッチに関連付けて保存
     void(^copiedAction)(BOOL) = [action copy];
-    [self.toggle addAction:[UIAction actionWithHandler:^(__kindof UIAction *a) {
-        if (copiedAction) copiedAction(((UISwitch *)a.sender).isOn);
-    }] forControlEvents:UIControlEventValueChanged];
+    objc_setAssociatedObject(self.toggle, "toggleAction", copiedAction, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    [self.toggle addTarget:self
+                    action:@selector(handleToggle:)
+          forControlEvents:UIControlEventValueChanged];
 
     // AutoLayout
     [NSLayoutConstraint activateConstraints:@[
@@ -64,6 +66,11 @@ static const CGFloat kRowHeight    = 52.0f;
     ]];
 
     return self;
+}
+
+- (void)handleToggle:(UISwitch *)sender {
+    void(^action)(BOOL) = objc_getAssociatedObject(sender, "toggleAction");
+    if (action) action(sender.isOn);
 }
 
 @end
@@ -136,7 +143,7 @@ static const CGFloat kRowHeight    = 52.0f;
                     enabled:gGodModeEnabled
                      action:^(BOOL on){ gGodModeEnabled = on; }];
 
-    // セパレーター + バージョン表示
+    // バージョン表示
     UILabel *ver = [[UILabel alloc] init];
     ver.text = @"v1.0.0  by yourname";
     ver.textColor = [UIColor colorWithWhite:1.0 alpha:0.3];
@@ -179,7 +186,6 @@ static const CGFloat kRowHeight    = 52.0f;
     self = [super initWithFrame:CGRectMake(20, 120, kButtonSize, kButtonSize)];
     if (!self) return nil;
 
-    // ボタン見た目
     self.backgroundColor = [UIColor colorWithRed:0.1 green:0.6 blue:1.0 alpha:0.9];
     self.layer.cornerRadius = kButtonSize / 2.0f;
     self.layer.shadowColor  = [UIColor blackColor].CGColor;
@@ -189,10 +195,8 @@ static const CGFloat kRowHeight    = 52.0f;
     [self setTitle:@"⚙️" forState:UIControlStateNormal];
     self.titleLabel.font = [UIFont systemFontOfSize:22.0f];
 
-    // タップ
     [self addTarget:self action:@selector(onTap) forControlEvents:UIControlEventTouchUpInside];
 
-    // ドラッグ
     UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc]
                                    initWithTarget:self action:@selector(onPan:)];
     [self addGestureRecognizer:pan];
@@ -205,7 +209,6 @@ static const CGFloat kRowHeight    = 52.0f;
         UIWindow *window = self.window;
         CGFloat px = self.frame.origin.x + kButtonSize + 8;
         CGFloat py = self.frame.origin.y;
-        // 画面右端にはみ出さないよう補正
         if (px + kPanelWidth > window.bounds.size.width) {
             px = self.frame.origin.x - kPanelWidth - 8;
         }
@@ -241,7 +244,6 @@ static const CGFloat kRowHeight    = 52.0f;
         CGRect  f  = self.frame;
         f.origin.x = _frameStart.x + dx;
         f.origin.y = _frameStart.y + dy;
-        // 画面外に出ないよう制限
         f.origin.x = MAX(0, MIN(f.origin.x, window.bounds.size.width  - kButtonSize));
         f.origin.y = MAX(0, MIN(f.origin.y, window.bounds.size.height - kButtonSize));
         self.frame = f;
