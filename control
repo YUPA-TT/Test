@@ -1,0 +1,8 @@
+Package: com.example.sampletweak
+Name: SampleTweak
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Sample Mod Menu Tweak
+Author: yourname
+Section: Tweaks
+Depends: mobilesubstrate
